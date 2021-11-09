@@ -1,5 +1,6 @@
-import {Component, OnDestroy} from '@angular/core';
-import {NEVER, Subject, Subscription} from 'rxjs';
+import { Component, OnDestroy } from '@angular/core';
+import { NEVER, Subject, Subscription, merge, interval } from 'rxjs';
+import { mapTo, switchMap, scan } from 'rxjs/operators';
 
 interface CounterState {
   isTicking: boolean;
@@ -7,6 +8,7 @@ interface CounterState {
   countUp: boolean;
   tickSpeed: number;
   countDiff: number;
+  initialSetTo: number;
 }
 
 enum ElementIds {
@@ -19,14 +21,13 @@ enum ElementIds {
   BtnSetTo = 'btn-set-to',
   InputSetTo = 'input-set-to',
   InputTickSpeed = 'input-tick-speed',
-  InputCountDiff = 'input-count-diff'
+  InputCountDiff = 'input-count-diff',
 }
-
 
 @Component({
   selector: 'app-counter',
   templateUrl: './counter.component.html',
-  styleUrls: ['./counter.component.scss']
+  styleUrls: ['./counter.component.scss'],
 })
 export class CounterComponent implements OnDestroy {
   elementIds = ElementIds;
@@ -36,7 +37,8 @@ export class CounterComponent implements OnDestroy {
     count: 0,
     countUp: true,
     tickSpeed: 200,
-    countDiff: 1
+    countDiff: 1,
+    initialSetTo: 10,
   };
 
   btnStart: Subject<Event> = new Subject<Event>();
@@ -45,24 +47,25 @@ export class CounterComponent implements OnDestroy {
   inputSetTo: Subject<Event> = new Subject<Event>();
 
   subscription: Subscription;
-  count = 0;
 
   constructor() {
-    /* Replace never with your code */
-    this.subscription = NEVER
-      .subscribe(
-        (next) => {
-          /* */
-        }
-      );
+    this.subscription = merge(
+      this.btnStart.pipe(mapTo(true)),
+      this.btnPause.pipe(mapTo(false))
+    )
+    .pipe(
+        switchMap((isTicking) => {return isTicking  ? interval(this.initialCounterState.tickSpeed): NEVER; }),
+        scan((conut: number, _) => ++conut)
+      )
+    .subscribe((n) => (this.initialCounterState.count = n));
   }
 
+  
   ngOnDestroy(): void {
     this.subscription.unsubscribe();
   }
 
   getInputValue = (event: HTMLInputElement): number => {
     return parseInt(event['target'].value, 10);
-  }
-
+  };
 }
