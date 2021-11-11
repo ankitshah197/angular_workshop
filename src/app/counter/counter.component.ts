@@ -1,5 +1,5 @@
 import { Component, OnDestroy } from '@angular/core';
-import { NEVER, Subject, Subscription, merge, timer, Observable } from 'rxjs';
+import { NEVER, Subject, Subscription, merge, timer, Observable, combineLatest } from 'rxjs';
 import { mapTo, switchMap, scan, withLatestFrom, tap, takeUntil, map, startWith, shareReplay } from 'rxjs/operators';
 import { inputToValue } from '../operators/inputToValue';
 import { CounterStateKeys } from '../counter-state-keys.enum';
@@ -91,12 +91,31 @@ export class CounterComponent implements OnDestroy {
   )
 
   // SIDE EFFECTS **********
+  isTicking = this.counterState.pipe(
+    selectDistinctState<CounterState, boolean>(CounterStateKeys.isTicking)
+  );
+  tickSpeed = this.counterState.pipe(
+    selectDistinctState<CounterState, boolean>(CounterStateKeys.tickSpeed)
+  );
+  intervalTick$ = combineLatest(this.isTicking, this.tickSpeed).pipe(
+    switchMap(([isTicking, tickSpeed]) => {
+      return isTicking ? timer(0, tickSpeed) : NEVER;
+    })
+  );
   
-  
-
+  // BACKGROUND PROCESSES **********
+  updateCounterFromTick = this.intervalTick$.pipe(
+    withLatestFrom(this.counterState, (_, s) => s),
+    tap(({ count, countDiff, countUp }) => {
+      const diff = countDiff * (countUp ? 1 : -1);
+      this.programmaticCommandSubject.next({ count: count + diff });
+    })
+  );
 
   constructor() {
-    
+    merge(this.updateCounterFromTick)
+    .pipe(takeUntil(this.ngOnDestroySubject.asObservable()))
+    .subscribe();
   }
 
   ngOnDestroy(): void {
