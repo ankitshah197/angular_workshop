@@ -5,32 +5,10 @@ import { inputToValue } from '../operators/inputToValue';
 import { CounterStateKeys } from '../counter-state-keys.enum';
 import { selectDistinctState } from '../operators/selectDistinctState';
 import { Command } from './command.interface';
+import { CounterState } from '../counter-state.interface';
+import { ElementIds } from '../element-ids.enum';
 
 //CONSTANTS **********
-
-interface CounterState {
-  isTicking: boolean;
-  count: number;
-  countUp: boolean;
-  tickSpeed: number;
-  countDiff: number;
-  initialSetTo: number;
-}
-
-enum ElementIds {
-  TimerDisplay = 'timer-display',
-  BtnStart = 'btn-start',
-  BtnPause = 'btn-pause',
-  BtnUp = 'btn-up',
-  BtnDown = 'btn-down',
-  BtnReset = 'btn-reset',
-  BtnSetTo = 'btn-set-to',
-  InputSetTo = 'input-set-to',
-  InputTickSpeed = 'input-tick-speed',
-  InputCountDiff = 'input-count-diff',
-}
-
-
 @Component({
   selector: 'app-counter',
   templateUrl: './counter.component.html',
@@ -46,7 +24,7 @@ export class CounterComponent implements OnDestroy {
     countUp: true,
     tickSpeed: 200,
     countDiff: 1,
-    initialSetTo: 10,
+    //initialSetTo: 10,
   };
 
   // BASE OBSERVABLES  **********
@@ -91,16 +69,10 @@ export class CounterComponent implements OnDestroy {
   )
 
   // SIDE EFFECTS **********
-  isTicking = this.counterState.pipe(
-    selectDistinctState<CounterState, boolean>(CounterStateKeys.isTicking)
-  );
-  tickSpeed = this.counterState.pipe(
-    selectDistinctState<CounterState, boolean>(CounterStateKeys.tickSpeed)
-  );
+  isTicking = this.counterState.pipe(selectDistinctState<CounterState, boolean>(CounterStateKeys.isTicking));
+  tickSpeed = this.counterState.pipe(selectDistinctState<CounterState, boolean>(CounterStateKeys.tickSpeed));
   intervalTick$ = combineLatest(this.isTicking, this.tickSpeed).pipe(
-    switchMap(([isTicking, tickSpeed]) => {
-      return isTicking ? timer(0, tickSpeed) : NEVER;
-    })
+    switchMap(([isTicking, tickSpeed]) => { return isTicking ? timer(0, tickSpeed) : NEVER; })
   );
   
   // BACKGROUND PROCESSES **********
@@ -113,6 +85,7 @@ export class CounterComponent implements OnDestroy {
   );
 
   constructor() {
+    // SUBSCRIPTION **********
     merge(this.updateCounterFromTick)
     .pipe(takeUntil(this.ngOnDestroySubject.asObservable()))
     .subscribe();
