@@ -19,8 +19,7 @@ import { ElementIds } from '../../element-ids.enum';
 export class CounterViewComponent {
   elementIds = ElementIds;
 
-  private stateSubject: ReplaySubject<CounterState> =
-    new ReplaySubject<CounterState>(1);
+  private stateSubject: ReplaySubject<CounterState> =  new ReplaySubject<CounterState>(1);
   state$ = this.stateSubject.asObservable();
 
   @Input()
