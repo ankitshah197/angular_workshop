@@ -4,4 +4,5 @@ export interface CounterState {
   countUp: boolean;
   tickSpeed: number;
   countDiff: number;
+  initialSetTo: number;
 }

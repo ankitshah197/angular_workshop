@@ -24,7 +24,7 @@ export class CounterComponent implements OnDestroy {
     countUp: true,
     tickSpeed: 200,
     countDiff: 1,
-    //initialSetTo: 10,
+    initialSetTo: 10
   };
 
   // BASE OBSERVABLES  **********
