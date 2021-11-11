@@ -1,6 +1,12 @@
 import { Component, OnDestroy } from '@angular/core';
-import { NEVER, Subject, Subscription, merge, interval } from 'rxjs';
-import { mapTo, switchMap, scan } from 'rxjs/operators';
+import { NEVER, Subject, Subscription, merge, timer, Observable } from 'rxjs';
+import { mapTo, switchMap, scan, withLatestFrom, tap, takeUntil, map, startWith, shareReplay } from 'rxjs/operators';
+import { inputToValue } from '../operators/inputToValue';
+import { CounterStateKeys } from '../counter-state-keys.enum';
+import { selectDistinctState } from '../operators/selectDistinctState';
+import { Command } from './command.interface';
+
+//CONSTANTS **********
 
 interface CounterState {
   isTicking: boolean;
@@ -24,12 +30,14 @@ enum ElementIds {
   InputCountDiff = 'input-count-diff',
 }
 
+
 @Component({
   selector: 'app-counter',
   templateUrl: './counter.component.html',
   styleUrls: ['./counter.component.scss'],
 })
 export class CounterComponent implements OnDestroy {
+  ngOnDestroySubject = new Subject();
   elementIds = ElementIds;
 
   initialCounterState: CounterState = {
@@ -41,31 +49,58 @@ export class CounterComponent implements OnDestroy {
     initialSetTo: 10,
   };
 
+  // BASE OBSERVABLES  **********
+  // SOURCE OBSERVABLES **********
+  
+  // INTERACTION OBSERVABLES **********
+
   btnStart: Subject<Event> = new Subject<Event>();
   btnPause: Subject<Event> = new Subject<Event>();
+  btnUp: Subject<Event> = new Subject<Event>();
+  btnDown: Subject<Event> = new Subject<Event>();
   btnSetTo: Subject<Event> = new Subject<Event>();
-  inputSetTo: Subject<Event> = new Subject<Event>();
+  inputSetTo: Subject<any> = new Subject<any>();
+  inputTickSpeed: Subject<Event> = new Subject<Event>();
+  inputCountDiff: Subject<Event> = new Subject<Event>();
+  btnReset: Subject<Event> = new Subject<Event>();
 
-  subscription: Subscription;
+  // INTERMEDIATE OBSERVABLES **********
+  lastSetToFromButtonClick = this.btnSetTo
+    .pipe(withLatestFrom(this.inputSetTo.pipe(inputToValue()), (_, inputSetTo: number) => { return inputSetTo;})
+  );
+
+  // STATE OBSERVABLES **********
+  programmaticCommandSubject: Subject<Command> = new Subject();
+  counterCommands: Observable<Command> = merge(
+    this.btnStart.pipe(mapTo({ isTicking: true })),
+    this.btnPause.pipe(mapTo({ isTicking: false })),
+    this.lastSetToFromButtonClick.pipe(map((n) => ({ count: n }))),
+    this.btnUp.pipe(mapTo({ countUp: true })),
+    this.btnDown.pipe(mapTo({ countUp: false })),
+    this.btnReset.pipe(mapTo({ ...this.initialCounterState })),
+    this.inputTickSpeed.pipe(inputToValue(),map((n) => ({ tickSpeed: n }))),
+    this.inputCountDiff.pipe(inputToValue(),map((n) => ({ countDiff: n }))),
+    this.programmaticCommandSubject.asObservable()
+  );
+  counterState: Observable<CounterState> = this.counterCommands.pipe(
+    startWith(this.initialCounterState),
+    scan(
+      (counterState: CounterState, command): CounterState => ({...counterState,...command})
+    ),
+    shareReplay(1)
+  )
+
+  // SIDE EFFECTS **********
+  
+  
+
 
   constructor() {
-    this.subscription = merge(
-      this.btnStart.pipe(mapTo(true)),
-      this.btnPause.pipe(mapTo(false))
-    )
-    .pipe(
-        switchMap((isTicking) => {return isTicking  ? interval(this.initialCounterState.tickSpeed): NEVER; }),
-        scan((conut: number, _) => ++conut)
-      )
-    .subscribe((n) => (this.initialCounterState.count = n));
+    
   }
 
-  
   ngOnDestroy(): void {
-    this.subscription.unsubscribe();
+    this.ngOnDestroySubject.next(true);
   }
 
-  getInputValue = (event: HTMLInputElement): number => {
-    return parseInt(event['target'].value, 10);
-  };
 }
